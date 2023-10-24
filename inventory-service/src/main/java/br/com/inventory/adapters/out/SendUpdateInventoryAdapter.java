@@ -1,22 +1,21 @@
-package br.com.sales.adapters.out;
+package br.com.inventory.adapters.out;
 
-import br.com.sales.adapters.out.message.SaleMessage;
-import br.com.sales.application.core.domain.Sale;
-import br.com.sales.application.core.domain.enums.SaleEvent;
-import br.com.sales.application.ports.out.SendCreatedSaleOutputPort;
+import br.com.inventory.adapters.out.message.SaleMessage;
+import br.com.inventory.application.core.domain.Sale;
+import br.com.inventory.application.core.domain.enums.SaleEvent;
+import br.com.inventory.application.ports.out.SendUpdatedInventoryOutputPort;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-public class SendCreatedSaleAdapter implements SendCreatedSaleOutputPort {
+public class SendUpdateInventoryAdapter implements SendUpdatedInventoryOutputPort {
 
     private static final String TOPIC = "tp-sale";
-
     private final KafkaTemplate<String, SaleMessage> kafkaTemplate;
 
     @Autowired
-    public SendCreatedSaleAdapter(KafkaTemplate<String, SaleMessage> kafkaTemplate) {
+    public SendUpdateInventoryAdapter(KafkaTemplate<String, SaleMessage> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -25,5 +24,4 @@ public class SendCreatedSaleAdapter implements SendCreatedSaleOutputPort {
         var saleMessage = new SaleMessage(sale, event);
         kafkaTemplate.send(TOPIC, saleMessage);
     }
-
 }

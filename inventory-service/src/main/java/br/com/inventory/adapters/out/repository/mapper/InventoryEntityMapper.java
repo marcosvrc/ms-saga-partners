@@ -8,4 +8,6 @@ import org.mapstruct.Mapper;
 public interface InventoryEntityMapper {
 
     Inventory toInventory(InventoryEntity inventoryEntity);
+
+    InventoryEntity toInventoryEntity(Inventory inventory);
 }

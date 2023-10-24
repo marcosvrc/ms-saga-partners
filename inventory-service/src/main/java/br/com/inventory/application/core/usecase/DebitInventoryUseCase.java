@@ -2,11 +2,12 @@ package br.com.inventory.application.core.usecase;
 
 import br.com.inventory.application.core.domain.Sale;
 import br.com.inventory.application.core.domain.enums.SaleEvent;
+import br.com.inventory.application.ports.in.DebitInventoryInputPort;
 import br.com.inventory.application.ports.in.FindInventoryByProductIdInputPort;
 import br.com.inventory.application.ports.out.SendUpdatedInventoryOutputPort;
 import br.com.inventory.application.ports.out.UpdateInventoryOutputPort;
 
-public class DebitInventoryUseCase {
+public class DebitInventoryUseCase implements DebitInventoryInputPort {
 
     private final FindInventoryByProductIdInputPort findInventoryByProductIdInputPort;
 
@@ -23,6 +24,7 @@ public class DebitInventoryUseCase {
     }
 
 
+    @Override
     public void debit(final Sale sale) {
         var inventory = findInventoryByProductIdInputPort.find(sale.getProductId());
         if(inventory.getQuantity() < sale.getQuantity()) {
