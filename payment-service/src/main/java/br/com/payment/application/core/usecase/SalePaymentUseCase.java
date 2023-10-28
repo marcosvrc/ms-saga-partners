@@ -6,7 +6,7 @@ import br.com.payment.application.core.domain.enums.SaleEvent;
 import br.com.payment.application.ports.in.FindUserByIdInputPort;
 import br.com.payment.application.ports.in.SalePaymentInputPort;
 import br.com.payment.application.ports.out.SavePaymentOutputPort;
-import br.com.payment.application.ports.out.SendValidatedPaymentOuputPort;
+import br.com.payment.application.ports.out.SendToKafkaOuputPort;
 import br.com.payment.application.ports.out.UpdateUserOutputPort;
 
 public class SalePaymentUseCase implements SalePaymentInputPort {
@@ -17,28 +17,34 @@ public class SalePaymentUseCase implements SalePaymentInputPort {
 
     private final SavePaymentOutputPort savePaymentOutputPort;
 
-    private final SendValidatedPaymentOuputPort sendValidatedPaymentOuputPort;
+    private final SendToKafkaOuputPort sendToKafkaOuputPort;
 
     public SalePaymentUseCase(final FindUserByIdInputPort findUserByIdInputPort,
                               final UpdateUserOutputPort updateUserOutputPort,
                               final SavePaymentOutputPort savePaymentOutputPort,
-                              final SendValidatedPaymentOuputPort sendValidatedPaymentOuputPort) {
+                              final SendToKafkaOuputPort sendToKafkaOuputPort) {
         this.findUserByIdInputPort = findUserByIdInputPort;
         this.updateUserOutputPort = updateUserOutputPort;
         this.savePaymentOutputPort = savePaymentOutputPort;
-        this.sendValidatedPaymentOuputPort = sendValidatedPaymentOuputPort;
+        this.sendToKafkaOuputPort = sendToKafkaOuputPort;
     }
 
     @Override
     public void payment(Sale sale) {
-        var user = findUserByIdInputPort.find(sale.getUserId());
-        if (user.getBalance().compareTo(sale.getValue()) < 0) {
-            throw new RuntimeException("Saldo insuficiente");
+        try{
+            var user = findUserByIdInputPort.find(sale.getUserId());
+            if (user.getBalance().compareTo(sale.getValue()) < 0) {
+                throw new RuntimeException("Saldo insuficiente");
+            }
+            user.debitBalance(sale.getValue());
+            updateUserOutputPort.update(user);
+            savePaymentOutputPort.save(buildPayment(sale));
+            sendToKafkaOuputPort.send(sale, SaleEvent.VALIDATED_PAYMENT);
+        } catch (Exception e) {
+            sendToKafkaOuputPort.send(sale, SaleEvent.FAILED_PAYMENT);
         }
-        user.debitBalance(sale.getValue());
-        updateUserOutputPort.update(user);
-        savePaymentOutputPort.save(buildPayment(sale));
-        sendValidatedPaymentOuputPort.send(sale, SaleEvent.VALIDATED_PAYMENT);
+
+
     }
 
     private Payment buildPayment(Sale sale) {

@@ -4,7 +4,7 @@ import br.com.inventory.application.core.domain.Sale;
 import br.com.inventory.application.core.domain.enums.SaleEvent;
 import br.com.inventory.application.ports.in.DebitInventoryInputPort;
 import br.com.inventory.application.ports.in.FindInventoryByProductIdInputPort;
-import br.com.inventory.application.ports.out.SendUpdatedInventoryOutputPort;
+import br.com.inventory.application.ports.out.SendToKafkaOutputPort;
 import br.com.inventory.application.ports.out.UpdateInventoryOutputPort;
 
 public class DebitInventoryUseCase implements DebitInventoryInputPort {
@@ -13,26 +13,29 @@ public class DebitInventoryUseCase implements DebitInventoryInputPort {
 
     private final UpdateInventoryOutputPort updateInventoryOutputPort;
 
-    private final SendUpdatedInventoryOutputPort sendUpdatedInventoryOutputPort;
+    private final SendToKafkaOutputPort sendToKafkaOutputPort;
 
     public DebitInventoryUseCase(final FindInventoryByProductIdInputPort findInventoryByProductIdInputPort,
                                  final UpdateInventoryOutputPort updateInventoryOutputPort,
-                                 final SendUpdatedInventoryOutputPort sendUpdatedInventoryOutputPort) {
+                                 final SendToKafkaOutputPort sendToKafkaOutputPort) {
         this.findInventoryByProductIdInputPort = findInventoryByProductIdInputPort;
         this.updateInventoryOutputPort = updateInventoryOutputPort;
-        this.sendUpdatedInventoryOutputPort = sendUpdatedInventoryOutputPort;
+        this.sendToKafkaOutputPort = sendToKafkaOutputPort;
     }
 
 
     @Override
     public void debit(final Sale sale) {
-        var inventory = findInventoryByProductIdInputPort.find(sale.getProductId());
-        if(inventory.getQuantity() < sale.getQuantity()) {
-            throw new RuntimeException("Quantidade em estoque insuficiente");
+        try {
+            var inventory = findInventoryByProductIdInputPort.find(sale.getProductId());
+            if (inventory.getQuantity() < sale.getQuantity()) {
+                throw new RuntimeException("Quantidade em estoque insuficiente");
+            }
+            inventory.debitQuantity(sale.getQuantity());
+            updateInventoryOutputPort.update(inventory);
+            sendToKafkaOutputPort.send(sale, SaleEvent.UPDATED_INVETORY);
+        } catch (Exception e) {
+            sendToKafkaOutputPort.send(sale, SaleEvent.ROLLBACK_INVENTORY);
         }
-        inventory.debitQuantity(sale.getQuantity());
-        updateInventoryOutputPort.update(inventory);
-        sendUpdatedInventoryOutputPort.send(sale, SaleEvent.UPDATED_INVETORY);
     }
-
 }
